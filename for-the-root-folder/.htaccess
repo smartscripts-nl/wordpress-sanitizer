@@ -13,7 +13,7 @@ RewriteBase /
 
 RewriteRule ^wipecache$ wp-content/themes/coloursole/wordpress-sanitizer-utilities.php?utility=wipecache [NC,L]
 
-RewriteRule ^setip wp-content/themes/coloursole/wordpress-sanitizer-utilities.php?utility=setip [NC,L]
+RewriteRule ^setip$ wp-content/themes/coloursole/wordpress-sanitizer-utilities.php?utility=setip [NC,L]
 
 
 

@@ -41,7 +41,7 @@ class wordpressSanitizerUtilities implements iWordpressSanitizerUtilties {
 		//online a https-verbinding is mandatory:
 		$https_required = !locaal;
 		if ($https_required && $_SERVER['SERVER_PORT'] != '443') {
-			self::_header404();
+			self::_redirect_to_homepage();
 		}
 
 		$utility = "_" . $_GET['utility'];
@@ -58,23 +58,37 @@ class wordpressSanitizerUtilities implements iWordpressSanitizerUtilties {
 			}
 
 			else {
-				self::_header404();
+				self::_redirect_to_homepage();
 			}
 		}
 
 		else {
-			self::_header404();
+			self::_redirect_to_homepage();
 		}
 	}
 
 	private function _setip () {
 
+		session_start();
+
+		//sessions MUST be available:
+		if (!session_id()) {
+			self::_redirect_to_homepage();
+		}
+
+		if (isset($_SESSION['bannedip']) && $_SESSION['bannedip']['banned_until'] > time()) {
+			self::_redirect_to_homepage();
+		}
+
+		$form_title = "Wijzig ipnummer";
+		$form = '<p ' . '>Deze pagina detecteert automatisch je gewijzigde ipnummer, dus dat hoef je niet op te geven.</p><form method="post" action="/setip"><label for="user">User</label><input type="text" name="user" id="user" value=""><label for="password">Wachtwoord</label><input type="password" name="password" id="password" value=""><div class="frm_submit">
+								<input type="submit" value="Verzend" /> <img class="frm_ajax_loading" src="/p/formidable/images/ajax_loader.gif" alt="Sending" style="visibility:hidden;" />
+							</div></form>';
+
 		//if no data posted, we need to display a form:
 		if (!isset($_POST['password'], $_POST['user'])) {
 
-			wordpressSanitizer::message_display("Wijzig ipnummer", '<p ' . '>Deze pagina detecteert automatisch je gewijzigde ipnummer, dus dat hoef je niet op te geven.</p><form method="post" action="/setip"><label for="user">User</label><input type="text" name="user" id="user" value=""><label for="password">Wachtwoord</label><input type="password" name="password" id="password" value=""><div class="frm_submit">
-								<input type="submit" value="Verzend" /> <img class="frm_ajax_loading" src="/p/formidable/images/ajax_loader.gif" alt="Sending" style="visibility:hidden;" />
-							</div></form>');
+			wordpressSanitizer::message_display($form_title, $form);
 
 		}
 
@@ -91,7 +105,8 @@ class wordpressSanitizerUtilities implements iWordpressSanitizerUtilties {
 			$user = $_POST['user'];
 
 			if (!isset($valid_users[$user])) {
-				self::_header404();
+				self::_invalid_login_handler($form_title, $form);
+				exit;
 			}
 
 			$password = $_POST['password'];
@@ -109,10 +124,13 @@ class wordpressSanitizerUtilities implements iWordpressSanitizerUtilties {
 			$is_valid_user = $wp_hasher->CheckPassword($password, $hash_in_db);
 
 			if ($is_valid_user) {
+				$_SESSION['login_attempts'] = 0;
+
 				$new_ip = wordpressSanitizer::ip_determine();
 
 				//only if the ip address is actually different from the stored ip address in the rewritemap isadmin.map do we need to store this changed address:
 				if ($valid_users[$user] != $new_ip) {
+
 					$valid_users[$user] = $new_ip;
 
 					$construct = "";
@@ -130,6 +148,11 @@ class wordpressSanitizerUtilities implements iWordpressSanitizerUtilties {
 				}
 
 			}
+
+			//a non valid login was given; if this happens more than 4 times, a visitor will be banned for 1 hour:
+			else {
+				self::_invalid_login_handler($form_title, $form);
+			}
 		}
 	}
 
@@ -145,8 +168,9 @@ class wordpressSanitizerUtilities implements iWordpressSanitizerUtilties {
 	 * Init the WordPress database library for external utilities
 	 */
 	private static function _wp_database_init () {
-		define("WP_DEBUG_DISPLAY", false);
 
+		//set some constants needed by the WordPress database plugin:
+		define("WP_DEBUG_DISPLAY", false);
 		define("WP_USE_EXT_MYSQL", false);
 
 		/** @noinspection PhpIncludeInspection */
@@ -158,9 +182,36 @@ class wordpressSanitizerUtilities implements iWordpressSanitizerUtilties {
 	}
 
 
-	private function _header404 () {
-		header("HTTP/1.0 404 Not Found");
+	private function _redirect_to_homepage () {
+		header("Location: /");
 		exit;
+	}
+
+	/**
+	 * @param string $form_title
+	 * @param string $form
+	 */
+	private static function _invalid_login_handler($form_title, $form) {
+		if (isset($_SESSION['login_attempts'])) {
+			$_SESSION['login_attempts'] += 1;
+
+			//when more than 4 invalid login attempts, store ip of visitor and time when login will be available again in a session variable:
+			if ($_SESSION['login_attempts'] > 4) {
+				$_SESSION['bannedip'] = Array(
+					"ip" => wordpressSanitizer::ip_determine(),
+					"banned_until" => time() + 3600
+				);
+
+				$_SESSION['login_attempts'] = 0;
+
+				self::_redirect_to_homepage();
+			}
+		}
+		else {
+			$_SESSION['login_attempts'] = 1;
+		}
+
+		wordpressSanitizer::message_display($form_title, $form);
 	}
 }
 
