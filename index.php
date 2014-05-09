@@ -21,6 +21,12 @@ get_header(); ?>
 //de ouderwetse procedurele opzet van WP verplicht ons helaas deze variabelen (verwijzend naar metaboxes) als globaal te definiëren (anders kunnen de metaboxes niet worden ingevoegd):
 global $custom_metabox_first, $custom_metabox_last;
 
+
+
+//======================= IMPORTANT ===========================
+
+//if you have downloaded the code for WordPress Sanitizer from GitHub, you don't need all this stuff for metaboxes (it will only cause errors for your site). This code is included because WordPress Sanitizer is being developed using a live site: http://www.coloursole.com.
+
 //laad de HTML-bewerkingen ten behoeve van coloursole:
 $filler = metaboxFillerColoursole::get_instance();
 metaboxGenerator::metabox_filler_set($filler);

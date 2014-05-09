@@ -72,7 +72,9 @@ class wordpressSanitizerUtilities implements iWordpressSanitizerUtilties {
 		//if no data posted, we need to display a form:
 		if (!isset($_POST['password'], $_POST['user'])) {
 
-			wordpressSanitizer::message_display("Wijzig ipnummer", '<p ' . '>Deze pagina detecteert automatisch je gewijzigde ipnummer, dus dat hoef je niet op te geven.</p><form method="post" action="/setip"><label for="user">User</label><input type="text" name="user" id="user" value=""><label for="password">Wachtwoord</label><input type="password" name="password" id="password" value=""><input type="submit" value="Bevestig wijziging" name="Send" id="send"></form>');
+			wordpressSanitizer::message_display("Wijzig ipnummer", '<p ' . '>Deze pagina detecteert automatisch je gewijzigde ipnummer, dus dat hoef je niet op te geven.</p><form method="post" action="/setip"><label for="user">User</label><input type="text" name="user" id="user" value=""><label for="password">Wachtwoord</label><input type="password" name="password" id="password" value=""><div class="frm_submit">
+								<input type="submit" value="Verzend" /> <img class="frm_ajax_loading" src="/p/formidable/images/ajax_loader.gif" alt="Sending" style="visibility:hidden;" />
+							</div></form>');
 
 		}
 
