@@ -75,8 +75,6 @@ RewriteRule ^(.+)/$ cache/$1.html.gzip [L]
 <IfModule mod_rewrite.c>
 RewriteBase /
 
-RewriteRule wp-login\.php$ 404.php [NC,L]
-
 RewriteRule ^index\.php$ - [L,QSA]
 
 #ten behoeve van geöbfusceerde bestandspaden:
