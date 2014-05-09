@@ -43,7 +43,7 @@ interface iWordpressSanitizer {
 
 	static function message_display ($title = "", $message = "");
 
-	static function servercache_delete();
+	static function servercache_delete($nomessage = false);
 
 	static function html_sanitize_and_echo ();
 }
@@ -253,10 +253,7 @@ class wordpressSanitizer implements iWordpressSanitizer {
 		//inject an icon/button for deleting the server cache (only if the WPS has been put in development mode and the visitor is an admin):
 		self::_servercache_delete_button_add($html);
 
-		require_once("custom-html-manipulations.php");
-
 		self::_required_javascripts_compute();
-
 
 		self::_javascripts_combine($html);
 		self::_stylesheets_combine($html);
@@ -799,13 +796,21 @@ class wordpressSanitizer implements iWordpressSanitizer {
 		echo $message;
 	}
 
-	public static function servercache_delete() {
+	/** Delete the server cache
+	 *
+	 * @param bool $nomessage
+	 */
+	public static function servercache_delete($nomessage = false) {
 
 		list($total_count, $files) = self::_servercache_files_get();
 
 		foreach ($files as $path) {
 
 			unlink ($path);
+		}
+
+		if ($nomessage) {
+			return;
 		}
 
 		$link = "<br /><a " . "href=\"/\">naar de homepagina</a>";
@@ -885,6 +890,14 @@ class wordpressSanitizer implements iWordpressSanitizer {
 	 * @param string $html
 	 */
 	private static function _servercache_delete_button_add(&$html) {
+
+		if (self::$_servercache_disable) {
+
+			//make sure that no servercache remains (and display no messages about this deletion):
+			self::servercache_delete(true);
+
+			return;
+		}
 
 		//button only available in development mode and for registered users:
 		if (!self::$_development_mode || !self::$_is_registered_user) {
