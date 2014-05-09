@@ -40,7 +40,7 @@ RewriteCond %{REQUEST_METHOD} !POST
 ReWriteCond %{REQUEST_URI} ^/?$
 ReWriteCond %{HTTP:accept-encoding} gzip
 RewriteCond %{DOCUMENT_ROOT}/cache-for-admins/index.html.gzip -f
-RewriteRule ^.*$ cache/index.html.gzip [L]
+RewriteRule ^/?$ cache-for-admins/index.html.gzip [L]
 
 #HTML pagina's vanuit cache echoën (heeft de rewritemap "noslashes", verwijzend naar noslashes.pl, nodig):
 #heb je geen admin-rechten op je server, dan kun je dit blok verwijderen, want dan kun je namelijk ook geen rewritemaps instellen:
@@ -49,7 +49,7 @@ RewriteCond %{REQUEST_METHOD} !POST
 ReWriteCond %{REQUEST_URI} !(jpe?g|gif|png|ttf|txt)$
 ReWriteCond %{HTTP:accept-encoding} gzip
 RewriteCond %{DOCUMENT_ROOT}/cache-for-admins${noslashes:%{REQUEST_URI}}.html.gzip -f
-RewriteRule ^(.+)/$ cache/$1.html.gzip [L]
+RewriteRule ^(.+)/$ cache-for-admins/$1.html.gzip [L]
 
 
 # ====================================== HTML PAGINA'S VOOR NON ADMINS =========================
@@ -82,12 +82,12 @@ RewriteRule ^c/(.+)$ wp-content/$1 [PT,NC]
 
 # BEGIN WordPress
 <IfModule mod_rewrite.c>
-
-RewriteRule ^index\.php$ - [L,QSA]
-
+RewriteEngine On
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.php [L,QSA]
+RewriteRule . /index.php [L]
 </IfModule>
 
 # END WordPress
