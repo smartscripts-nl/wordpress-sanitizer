@@ -866,29 +866,31 @@ class wordpressSanitizer implements iWordpressSanitizer {
 	 * Bepaal het tijdstip van publicatie van de post op de huidige pagina
 	 */
 	private static function _post_time_get() {
+
 		if (!self::$_post_time) {
-			ob_start();
-			the_date();
-			echo " ";
-			the_time();
-			self::$_post_time = strtotime(ob_end_clean());
+			self::$_post_time = time(the_modified_date("Y-m-d, H:i", "", "", false));
 		}
 	}
 
 	private static function _cache_control_headers_send($html) {
+
 		if (!self::$_form_posted) {
-			header('Last-Modified: ' . gmdate("D, d M Y H:i:s", self::$_post_time - 2) . " GMT");
+
+			header('Last-Modified: ' . gmdate("D, d M Y H:i:s", self::$_post_time - 2) . " GMT", true);
 
 			//ETag ten behoeve van cache-control zenden:
 			//send ETag for cache-control:
-			header("ETag: " . md5($html));
+			header("ETag: " . md5($html), true);
 
 			$expire = 3600 * 24 * self::$_days;
 
 			$expire_date = self::$_post_time + $expire;
 
-			header("Cache-Control: max-age={$expire},must-revalidate,proxy-revalidate");
-			header("Expires: " . gmdate("D, d M Y H:i:s", $expire_date) . " GMT"); // Always expired
+			header("Cache-Control: max-age={$expire},must-revalidate,proxy-revalidate", true);
+			header("Expires: " . gmdate("D, d M Y H:i:s", $expire_date) . " GMT", true); // Always expired
+
+			//apparently WordPress somewhere sends Pragma: no-cache and we have to overrule that to make cachecontrol possible:
+			header("Pragma: cache", true);
 		}
 
 		//bij gepost formulier zorgen dat de pagina altijd verlopen is:
