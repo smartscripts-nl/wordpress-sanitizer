@@ -9,6 +9,16 @@
  */
 
 
+// ============================== CREDITS ========================
+
+/*
+ * htmlLawed (http://www.bioinformatics.org/phplabware/internal_utilities/htmLawed/beta/ ; adapted version by Alex Pot), for beautifying and correcting the HTML that WordPress outputs.
+ * WordPress of course!
+ * WordPress Sanitizer has been written bij Alex Pot of www.smartscripts.nl. A lot of time has been spent putting it all together. So if you plan to use WordPress Sanitizer, I humbly ask that you leave these credits intact.
+ *
+ * SmartScripts @copy 2014
+ */
+
 
 
 //=============================== INTERFACES ================================

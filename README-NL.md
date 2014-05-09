@@ -10,6 +10,7 @@ De scripts op deze pagina bevinden zich nog in bèta-stadium. Gebruik ervan is g
 
 1. WordPress (natuurlijk!)
 2. [htmlLawed](http://www.bioinformatics.org/phplabware/internal_utilities/htmLawed/beta/), om de HTML van WordPress te formatteren en eventueel te corrigeren (aangepaste versie door Alex Pot)
+3. WordPress Sanitizer is geschreven door Alex Pot of [SmartScripts](www.smartscripts.nl). Het was een flinke klus dit allemaal aan de praat te krijgen. Daarom is mijn verzoek dat je deze credits en die in wordpress-sanitizer.php intact laat wanneer je van plan bent om WordPress Sanitizer te gaan gebruiken..
 
 ## Over dit respository ##
 
