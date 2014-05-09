@@ -71,12 +71,6 @@ RewriteCond %{DOCUMENT_ROOT}/cache${noslashes:%{REQUEST_URI}}.html.gzip -f
 RewriteRule ^(.+)/$ cache/$1.html.gzip [L]
 
 
-# BEGIN WordPress
-<IfModule mod_rewrite.c>
-RewriteBase /
-
-RewriteRule ^index\.php$ - [L,QSA]
-
 #ten behoeve van geöbfusceerde bestandspaden:
 RewriteRule ^t/(.+)$ wp-content/themes/$1 [PT,NC]
 RewriteRule ^p/(.+)$ wp-content/plugins/$1 [PT,NC]
@@ -84,6 +78,12 @@ RewriteRule ^(?:resources|uploads)/(.+)$ /wp-content/uploads/$1 [PT,NC]
 RewriteRule ^a/(.+)$ wp-admin/$1 [PT,NC]
 RewriteRule ^i/(.+)$ wp-includes/$1 [PT,NC]
 RewriteRule ^c/(.+)$ wp-content/$1 [PT,NC]
+
+
+# BEGIN WordPress
+<IfModule mod_rewrite.c>
+
+RewriteRule ^index\.php$ - [L,QSA]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
