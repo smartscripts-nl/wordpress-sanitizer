@@ -270,7 +270,7 @@ class wordpressSanitizer implements iWordpressSanitizer {
 	private static function _urls_shorten (&$subject) {
 		//absolute links inkorten:
 		//shorten absolute links:
-		$subject = preg_replace('#https?://[^/><\'") ]+#', "", $subject);
+		$subject = preg_replace('#http://[^/><\'") ]+#', "", $subject);
 
 		//obfusceer de standaard WordPress-paden (.htaccess moet hierop zijn afgestemd):
 		//obfuscate the default WordPress paths (.htaccess has to have been adapted for this):
@@ -894,7 +894,9 @@ class wordpressSanitizer implements iWordpressSanitizer {
 		}
 
 		if ($use_button) {
-			$html = str_replace("</body>", "<a " . "href='/wipecache' id='wipecache'><img src='/images/wipe.png' height='16' width='16' alt='Verwijder servercache' title='Klik hier om de servercache te wissen'></a>\r\n</body>", $html);
+			$url = (locaal) ? "/wipecache" : "https://" . $_SERVER['SERVER_NAME'] . "/wipecache";
+
+			$html = str_replace("</body>", "<a " . "href='{$url}' id='wipecache'><img src='/images/wipe.png' height='16' width='16' alt='Verwijder servercache' title='Klik hier om de servercache te wissen'></a>\r\n</body>", $html);
 		}
 	}
 

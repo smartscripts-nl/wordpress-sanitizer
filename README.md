@@ -31,7 +31,7 @@ The most up-to-date branch in this repository will always be *develop*.
 
 ## Special URL ##
 
-Admins can adjust their ip address (stored in the rewritemap /wp-content/themes/[themename]/rewritemap/isadmin.map) with the from at https://www.[domain]/setip. Thanks to this address on the public pages there will be available only for admins a button/icon with which they can wipe the server cache of the site.
+Admins can adjust their ip address (stored in the rewritemap /wp-content/themes/[themename]/rewritemap/isadmin.map) with the form at https://www.[domain]/setip. Thanks to this address on the public pages there will be available only for admins a button/icon with which they can wipe the server cache of the site.
 
 ##Howto's
 
