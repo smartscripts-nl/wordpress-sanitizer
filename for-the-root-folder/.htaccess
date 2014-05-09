@@ -1,0 +1,127 @@
+# Stop Apache from serving .ht* files
+<Files ~ "^\.ht">
+Order allow,deny
+Deny from all
+</Files>
+
+
+RewriteEngine On
+
+RewriteBase /
+
+#wordpressSanitizer utilities
+
+RewriteRule ^wipecache$ wp-content/themes/coloursole/wordpress-sanitizer-utilities.php?utility=wipecache [NC,L]
+
+RewriteRule ^setip wp-content/themes/coloursole/wordpress-sanitizer-utilities.php?utility=setip [NC,L]
+
+
+
+#Volgende is nodig om mod_rewrite rules ter beveiliging uit httpd.conf te laden
+RewriteOptions inherit
+
+ReWriteCond %{REQUEST_URI} .js$
+ReWriteCond %{HTTP:accept-encoding} gzip
+RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.gzip -f
+RewriteRule ^(.+)$ $1.gzip [L]
+
+ReWriteCond %{REQUEST_URI} .css$
+ReWriteCond %{HTTP:accept-encoding} gzip
+RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.gzip -f
+RewriteRule ^(.+)$ $1.gzip [L]
+
+
+# ===================================== HTML PAGINA'S VOOR ADMINS ==========================
+# admins op ip nummer gedetecteerd. In dat geval cache geladen vanuit /cache-for-admins
+
+#homepagina vanuit cache echoën (geeft online problemen met rewritemap, vandaar hier in een afzonderlijke regel):
+RewriteCond ${isadmin:%{REMOTE_ADDR}|nonadmin} !nonadmin
+RewriteCond %{REQUEST_METHOD} !POST
+ReWriteCond %{REQUEST_URI} ^/?$
+ReWriteCond %{HTTP:accept-encoding} gzip
+RewriteCond %{DOCUMENT_ROOT}/cache-for-admins/index.html.gzip -f
+RewriteRule ^.*$ cache/index.html.gzip [L]
+
+#HTML pagina's vanuit cache echoën (heeft de rewritemap "noslashes", verwijzend naar noslashes.pl, nodig):
+#heb je geen admin-rechten op je server, dan kun je dit blok verwijderen, want dan kun je namelijk ook geen rewritemaps instellen:
+RewriteCond ${isadmin:%{REMOTE_ADDR}|nonadmin} !nonadmin
+RewriteCond %{REQUEST_METHOD} !POST
+ReWriteCond %{REQUEST_URI} !(jpe?g|gif|png|ttf|txt)$
+ReWriteCond %{HTTP:accept-encoding} gzip
+RewriteCond %{DOCUMENT_ROOT}/cache-for-admins${noslashes:%{REQUEST_URI}}.html.gzip -f
+RewriteRule ^(.+)/$ cache/$1.html.gzip [L]
+
+
+# ====================================== HTML PAGINA'S VOOR NON ADMINS =========================
+# Voor non-admins cache geladen vanuit /cache
+
+#homepagina vanuit cache echoën (geeft online problemen met rewritemap, vandaar hier in een afzonderlijke regel):
+RewriteCond %{REQUEST_METHOD} !POST
+ReWriteCond %{REQUEST_URI} ^/?$
+ReWriteCond %{HTTP:accept-encoding} gzip
+RewriteCond %{DOCUMENT_ROOT}/cache/index.html.gzip -f
+RewriteRule ^.*$ cache/index.html.gzip [L]
+
+#HTML pagina's vanuit cache echoën (heeft de rewritemap "noslashes", verwijzend naar noslashes.pl, nodig):
+#heb je geen admin-rechten op je server, dan kun je dit blok verwijderen, want dan kun je namelijk ook geen rewritemaps instellen:
+RewriteCond %{REQUEST_METHOD} !POST
+ReWriteCond %{REQUEST_URI} !(jpe?g|gif|png|ttf|txt)$
+ReWriteCond %{HTTP:accept-encoding} gzip
+RewriteCond %{DOCUMENT_ROOT}/cache${noslashes:%{REQUEST_URI}}.html.gzip -f
+RewriteRule ^(.+)/$ cache/$1.html.gzip [L]
+
+
+# BEGIN WordPress
+<IfModule mod_rewrite.c>
+RewriteBase /
+
+RewriteRule wp-login\.php$ 404.php [NC,L]
+
+RewriteRule ^index\.php$ - [L,QSA]
+
+#ten behoeve van geöbfusceerde bestandspaden:
+RewriteRule ^t/(.+)$ wp-content/themes/$1 [PT,NC]
+RewriteRule ^p/(.+)$ wp-content/plugins/$1 [PT,NC]
+RewriteRule ^(?:resources|uploads)/(.+)$ /wp-content/uploads/$1 [PT,NC]
+RewriteRule ^a/(.+)$ wp-admin/$1 [PT,NC]
+RewriteRule ^i/(.+)$ wp-includes/$1 [PT,NC]
+RewriteRule ^c/(.+)$ wp-content/$1 [PT,NC]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L,QSA]
+</IfModule>
+
+# END WordPress
+
+<FilesMatch "\.html(\.gzip)?$">
+	Header Set Vary "Accept-Encoding"
+	Header set Content-Type "text/html; charset=utf-8"
+	#onderstaande max-age is voor één dag:
+	Header set Cache-Control "max-age=86400,must-revalidate,proxy-revalidate"
+	FileETag MTime Size
+	ForceType text/html
+</FilesMatch>
+
+<FilesMatch "\.js(\.gzip)?$">
+	Header set Expires "Thu, 15 Apr 2040 20:00:00 GMT"
+	Header Set Vary "Accept-Encoding"
+	Header set Content-Type "application/javascript; charset=utf-8"
+	Header set Cache-Control "max-age=2678400"
+	FileETag MTime Size
+	ForceType application/javascript
+</FilesMatch>
+
+<FilesMatch "\.css(\.gzip)?$">
+	Header set Expires "Thu, 15 Apr 2040 20:00:00 GMT"
+	Header Set Vary "Accept-Encoding"
+	Header set Content-Type "text/css; charset=utf-8"
+	Header set Cache-Control "max-age=2678400"
+	FileETag MTime Size
+	ForceType text/css
+</FilesMatch>
+
+<FilesMatch "\.(html|js|css)\.gzip$">
+	Header Set Content-Encoding "gzip"
+</FilesMatch>
+

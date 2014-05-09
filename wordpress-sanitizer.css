@@ -1,0 +1,14 @@
+/* ================== CSS ten behoeve van WordPressSanitizer ================ */
+
+#wipecache {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+}
+
+#wipecache img {
+    width: auto;
+    margin: 0;
+    border: 0;
+}
+
