@@ -63,6 +63,10 @@ class wordpressSanitizerConfiguration implements iConfigurator {
 			 * @var array */
 			"rewritemap"  => $rewritemap,
 
+			/** rootfolder of WordPress installation
+			 * @var string */
+			"wordpress_rootfolder" => $_SERVER['DOCUMENT_ROOT'],
+
 			/** WordPress Sanitizer al of niet uitschakelen (tbv testen en vergelijken)
 			 * @var bool */
 			"disable_wordpress_sanitizer" => false,

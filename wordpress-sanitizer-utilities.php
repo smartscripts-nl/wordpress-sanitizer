@@ -15,11 +15,12 @@ interface iWordpressSanitizerUtilties {
 }
 
 
-
 /** Utilities for wordpressSanitizer. Implemented utilities for this moment:
  * wipecache
  *
  * Class wordpressSanitizerUtilities
+ *
+ * @see wordpressSanitizer
  *
  * @package WordPress Sanitizer
  */
@@ -38,7 +39,7 @@ class wordpressSanitizerUtilities implements iWordpressSanitizerUtilties {
 			die;
 		}
 
-		//online a https-verbinding is mandatory:
+		//online a https-connection is mandatory:
 		$https_required = !locaal;
 		if ($https_required && $_SERVER['SERVER_PORT'] != '443') {
 			self::_redirect_to_homepage();

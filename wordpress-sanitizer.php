@@ -159,6 +159,11 @@ class wordpressSanitizerCallbacks implements iWordpressSanitizerCallbacks {
 			$opener = ($has_list_tags) ? "<li>" : "";
 			$closer = ($has_list_tags) ? "</li>" : "";
 
+			//prevent 301 moved permanently-headers by making sure that pretty urls always have an ending slash:
+			if (!preg_match('#\d+$#', $url) && substr($url, -1) != "/") {
+				$url .= "/";
+			}
+
 			return "{$opener}<a " . "href=\"{$url}\"{$class}>{$linktext}</a>{$closer}";
 		}
 	}
@@ -189,6 +194,10 @@ class wordpressSanitizer implements iWordpressSanitizer {
 	/** @see wordpressSanitizerConfiguration::get_options()
 	 * @var array */
 	private static $_rewritemap = Array();
+
+	/** @see wordpressSanitizerConfiguration::get_options()
+	 * @var array */
+	private static $_wordpress_rootfolder = "";
 
 	/** @see wordpressSanitizerConfiguration::get_options()
 	 * @var bool */
@@ -309,7 +318,7 @@ class wordpressSanitizer implements iWordpressSanitizer {
 			if (!$javascript_already_combined) {
 				$all_targets = join("", $external_sources);
 				$html_target = "/scripts/" . md5($all_targets) . ".js";
-				$target = $_SERVER['DOCUMENT_ROOT'] . $html_target;
+				$target = self::$_wordpress_rootfolder . $html_target;
 
 				//het cachefile niet opnieuw opslaan als functions.php en de post niet nieuwer zijn dan dat cachefile:
 				//no need to store the server cache file again if functions.php and the post aren't newer than this server cache file:
@@ -335,7 +344,7 @@ class wordpressSanitizer implements iWordpressSanitizer {
 
 					//verwijder eventuele versienummers:
 					//remove version numbers (in querystrings) if present:
-					$file_src = preg_replace('#[?].+$#', "", $_SERVER['DOCUMENT_ROOT'] . $src, 1);
+					$file_src = preg_replace('#[?].+$#', "", self::$_wordpress_rootfolder . $src, 1);
 
 					if (file_exists($file_src)) {
 						$javascript_construct .= file_get_contents($file_src) . "\r\n";
@@ -448,7 +457,7 @@ class wordpressSanitizer implements iWordpressSanitizer {
 
 						//verwijder eventuele versienummers:
 						//remove version numbers (in querystrings) if present:
-						$file_src = preg_replace('#[?].+$#', "", $_SERVER['DOCUMENT_ROOT'] . $src, 1);
+						$file_src = preg_replace('#[?].+$#', "", self::$_wordpress_rootfolder . $src, 1);
 
 						if (file_exists($file_src)) {
 							$css_construct .= file_get_contents($file_src) . "\r\n";
@@ -873,6 +882,13 @@ class wordpressSanitizer implements iWordpressSanitizer {
 			//ETag ten behoeve van cache-control zenden:
 			//send ETag for cache-control:
 			header("ETag: " . md5($html));
+
+			$expire = 3600 * 24 * self::$_days;
+
+			$expire_date = self::$_post_time + $expire;
+
+			header("Cache-Control: max-age={$expire},must-revalidate,proxy-revalidate");
+			header("Expires: " . gmdate("D, d M Y H:i:s", $expire_date) . " GMT"); // Always expired
 		}
 
 		//bij gepost formulier zorgen dat de pagina altijd verlopen is:
