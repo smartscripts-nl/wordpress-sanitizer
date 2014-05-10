@@ -104,6 +104,23 @@ require_once(WPTHEMEFOLDER . "/custom-require-once.php");
  */
 class wordpressSanitizerCallbacks implements iWordpressSanitizerCallbacks {
 
+	/** The collector for all the combined javascripts
+	 *
+	 * @see wordpressSanitizerCallbacks::javascript_combine()
+	 *
+	 * @var string */
+	private static $_javascript_combined = "";
+
+	/** This wil receive a string of the names of all external scripts combined. This string will then be used to generate a md5-hash, as an unique identifier for the external file that will receive all the combined javascripts.
+	 *
+	 * @see wordpressSanitizerCallbacks::javascript_combine()
+	 *
+	 * @var string */
+	private static $_javascript_external_sources = "";
+
+	private static $_tempvar1;
+	private static $_tempvar2;
+
 	public static function active_page_mark ($matches) {
 		$item = $matches[0];
 
@@ -128,7 +145,13 @@ class wordpressSanitizerCallbacks implements iWordpressSanitizerCallbacks {
 		//verwijder absolute deel uit WordPress-links (anders geen match met $_SERVER['REQUEST_URI'] mogelijk):
 		$url = preg_replace('#https?://[^/]+#i', "", $url, 1);
 
-		$mark_active = preg_match('#' . $url . '/?$#', $_SERVER['REQUEST_URI']);
+		$mark_active = (
+			//for non homepages:
+			($url != "/" && preg_match('#' . $url . '/?$#', $_SERVER['REQUEST_URI']))
+			||
+			//for the homepage:
+			($url == "/" && $url == $_SERVER['REQUEST_URI'])
+		);
 
 		$linktext = "";
 		$success = preg_match('#<a[^>]*>(.*?)</a>#', $item, $out);
@@ -165,6 +188,87 @@ class wordpressSanitizerCallbacks implements iWordpressSanitizerCallbacks {
 			}
 
 			return "{$opener}<a " . "href=\"{$url}\"{$class}>{$linktext}</a>{$closer}";
+		}
+	}
+
+	/** Combine all relevant scripts loaded on the page into one script
+	 *
+	 * @param array $matches
+	 *
+	 * <code>
+	 * <br />
+	 * <strong>codevoorbeeld</strong>
+	 * <span style="color: purple">$html = preg_replace_callback('#<script([^>]*)>(.*?)</script>#si', 'wordpressSanitizerCallbacks::javascript_combine', $html);</span>
+	 * </code>
+	 *
+*@return string
+	 */
+	public static function javascript_combine ($matches) {
+
+		$is_external = preg_match('#\bsrc\b\s*=\s*[\'"]([^\'"]+)#', $matches[1], $out);
+
+		//these temporary properties have been set with wordpressSanitizerCallbacks::tempvar_set(), before that javascript_combine() was called:
+		$_protected_resources = self::$_tempvar1;
+		$_wordpress_rootfolder = self::$_tempvar2;
+
+		if ($is_external) {
+
+			//the source of external javascripts:
+			$src = $out[1];
+			//this one we need for embedded scripts:
+			$scriptbody = $matches[2];
+
+			//if we haven't told WPS that we want to preserve a certain script (because WordPress sometimes injects javascripts that aren't used on a particular page), remove it from the page:
+			if (!preg_match('#(?:' . $_protected_resources . ')#', $src) && !preg_match('#(?:' . $_protected_resources . ')#', $scriptbody) && !stristr($src, "html5.js")) {
+				return "";
+			}
+
+			//leave the html5-shiv intact, don't move it into the combined script:
+			elseif (stristr($src, "html5.js")) {
+				return $matches[0];
+			}
+
+			$src = preg_replace('#https?://[^/]+#', "", $src, 1);
+
+			//this string of all external javascripts files will be used to generate a unique md5-code for the name of the combined javascript file:
+			self::$_javascript_external_sources .= $src;
+
+			//verwijder eventuele versienummers:
+			//remove version numbers (in querystrings) if present:
+			$file_src = preg_replace('#[?].+$#', "", $_wordpress_rootfolder . $src, 1);
+
+			//load an external script and destroy the link to it in the page HTML:
+			if (file_exists($file_src)) {
+				self::$_javascript_combined .= file_get_contents($file_src) . "\r\n";
+
+				return "";
+			}
+
+			//if we've come here, something went wrong and we'd better not remove the script from the page:
+			return $matches[0];
+		}
+
+		//embedded javascript:
+		else {
+			self::$_javascript_external_sources .= "\r\n" . $matches[2];
+
+			//now that we have collected the javascript, we can remove the source of it from the HTML:
+			return "";
+		}
+	}
+
+	public static function javascript_get() {
+
+		return Array(md5(self::$_javascript_external_sources), self::$_javascript_combined);
+	}
+
+	public static function tempvar_set ($nr, $value) {
+
+		$var = "_tempvar" . $nr;
+
+		if (is_numeric($nr) && $nr <= 4 && property_exists("wordpressSanitizerCallbacks", $var)) {
+
+			self::$$var = $value;
 		}
 	}
 }
@@ -296,106 +400,53 @@ class wordpressSanitizer implements iWordpressSanitizer {
 	private static function _javascripts_combine(&$html) {
 
 		//verwijder alle javascripts op de openbare pagina:
-		//remove all javascripts from the public page:
+		//remove all javascripts from the public page (and replace them by one combined script):
 		if (self::$_remove_javascripts) {
 
-			$javascript_construct = "";
+			wordpressSanitizerCallbacks::tempvar_set(1, self::$_protected_resources);
+			wordpressSanitizerCallbacks::tempvar_set(2, self::$_wordpress_rootfolder);
 
 			$javascript_already_combined = false;
 
-			$success = preg_match_all('#<script[^>]*?src\s*=\s*[\'"]([^\'"]+)#i', $html, $out);
+			//this callback collects all javascript on the page, deletes it sources and combines the collected javascript into one resource:
+			$html = preg_replace_callback('#<script([^>]*)>(.*?)</script>#si', 'wordpressSanitizerCallbacks::javascript_combine', $html);
 
-			$target = $html_target = "";
+			list($md5_code, $javascript_construct) = wordpressSanitizerCallbacks::javascript_get();
 
-			$external_sources = ($success) ? $out[1] : Array();
+			$html_target = "/scripts/{$md5_code}.js";
+			$target = self::$_wordpress_rootfolder . $html_target;
 
-			if (!$success || (count($out[1]) == 1 && stristr($external_sources[0], "html5"))) {
-				self::_resources_delete_from_page($html, "javascript", "embedded");
-				self::_resources_delete_from_page($html, "javascript", "external");
-				return;
-			}
+			//het cachefile niet opnieuw opslaan als functions.php en de post niet nieuwer zijn dan dat cachefile:
+			//no need to store the server cache file again if functions.php and the post aren't newer than this server cache file:
+			if (file_exists($target)) {
 
-			if (!$javascript_already_combined) {
-				$all_targets = join("", $external_sources);
-				$html_target = "/scripts/" . md5($all_targets) . ".js";
-				$target = self::$_wordpress_rootfolder . $html_target;
+				$filemtime = filemtime(__FILE__);
+				self::_post_time_get();
 
-				//het cachefile niet opnieuw opslaan als functions.php en de post niet nieuwer zijn dan dat cachefile:
-				//no need to store the server cache file again if functions.php and the post aren't newer than this server cache file:
-				if (file_exists($target)) {
+				$resource_time = filemtime($target);
 
-					$filemtime = filemtime(__FILE__);
-					self::_post_time_get();
-
-					$resource_time = filemtime($target);
-
-					if ($resource_time > $filemtime && $resource_time > self::$_post_time) {
-						$javascript_already_combined = true;
-					}
+				if ($resource_time > $filemtime && $resource_time > self::$_post_time) {
+					$javascript_already_combined = true;
 				}
 			}
 
-			if (!$javascript_already_combined && $external_sources) {
-
-				foreach ($external_sources as $src) {
-					if (!preg_match('#(?:' . self::$_protected_resources . ')#', $src) || stristr($src, "html5.js")) {
-						continue;
-					}
-
-					//verwijder eventuele versienummers:
-					//remove version numbers (in querystrings) if present:
-					$file_src = preg_replace('#[?].+$#', "", self::$_wordpress_rootfolder . $src, 1);
-
-					if (file_exists($file_src)) {
-						$javascript_construct .= file_get_contents($file_src) . "\r\n";
-					}
+			//cache het verzamelde javascript (mits dat er is):
+			//cache the collected javascript (if existant):
+			if ($javascript_construct && !$javascript_already_combined) {
+				file_put_contents($target, $javascript_construct);
+				if (!locaal) {
+					chmod($target, 0666);
 				}
 
-				//verwijder alle links naar externe scripts:
-				//remove all links to external javascripts:
-				self::_resources_delete_from_page($html, "javascript", "external");
-
-
-				//lees alle embedded scripts in:
-				//collect all embedded javascripts:
-				$success = preg_match_all('#<script(?:[^>](?!src))*>(.*?)</script>#si', $html, $out);
-
-				if ($success) {
-					foreach ($out[1] as $script) {
-
-						if (!$script || !preg_match('#(?:' . self::$_protected_resources . ')#', $script)) {
-							continue;
-						}
-
-						$javascript_construct .= $script . "\r\n";
-					}
-
-					//verwijder alle embedded scripts uit de pagina:
-					//remove all embedded scripts from the page:
-					self::_resources_delete_from_page($html, "javascript", "embedded");
-				}
-
-				//cache het verzamelde javascript (mits dat er is):
-				//cache the collected javascript (if existant):
-				if ($javascript_construct) {
-					file_put_contents($target, $javascript_construct);
-					if (!locaal) {
-						chmod($target, 0666);
-					}
-
-					//sla ook een gzipped versie op:
-					$gzipped = gzencode($javascript_construct);
-					file_put_contents($target . ".gzip", $gzipped);
-					if (!locaal) {
-						chmod($target . ".gzip", 0666);
-					}
+				//sla ook een gzipped versie op:
+				$gzipped = gzencode($javascript_construct);
+				file_put_contents($target . ".gzip", $gzipped);
+				if (!locaal) {
+					chmod($target . ".gzip", 0666);
 				}
 			}
 
-			if (($javascript_already_combined || $javascript_construct) && $html_target) {
-				self::_resources_delete_from_page($html, "javascript", "embedded");
-				self::_resources_delete_from_page($html, "javascript", "external");
-
+			if ($javascript_construct && $html_target) {
 				//link naar het verzamelde javascript:
 				$html = str_replace("</body>", "<script src='" . "{$html_target}'></script>\r\n</body>", $html);
 			}
@@ -467,7 +518,7 @@ class wordpressSanitizer implements iWordpressSanitizer {
 
 				//verwijder alle links naar externe stylesheets:
 				//remove all links to external stylesheets:
-				self::_resources_delete_from_page($html, "stylesheet", "external");
+				self::_stylesheets_delete_from_page($html, "external");
 
 
 				//lees alle embedded CSS in:
@@ -486,7 +537,7 @@ class wordpressSanitizer implements iWordpressSanitizer {
 
 					//verwijder alle embedded stylesheets uit de pagina:
 					//remove all embeddes stylesheets from the page:
-					self::_resources_delete_from_page($html, "stylesheet", "embedded");
+					self::_stylesheets_delete_from_page($html, "embedded");
 				}
 
 				//cache het verzamelde javascript (mits dat er is):
@@ -514,8 +565,8 @@ class wordpressSanitizer implements iWordpressSanitizer {
 			}
 
 			if (($css_already_combined || $css_construct) && $html_target) {
-				self::_resources_delete_from_page($html, "stylesheet", "embedded");
-				self::_resources_delete_from_page($html, "stylesheet", "external");
+				self::_stylesheets_delete_from_page($html, "embedded");
+				self::_stylesheets_delete_from_page($html, "external");
 
 				//link naar het verzamelde javascript:
 				//inject a link to the collected javascript:
@@ -526,35 +577,18 @@ class wordpressSanitizer implements iWordpressSanitizer {
 
 	}
 
-	private static function _resources_delete_from_page (&$html, $stream = "javascript", $target = "embedded") {
+	private static function _stylesheets_delete_from_page (&$html, $target = "embedded") {
 
-		if ($stream == "javascript") {
-			//verwijder alle embedded scripts uit de pagina:
-			//remove all embedded javascripts from the page:
-			if ($target == "embedded") {
-				$html = preg_replace('#<script(?:[^>](?!\bsrc))*>.*?</script>#si', "", $html);
-			}
-
-			//verwijder alle links naar externe scripts
-			//remove all links to external javascripts
-			else {
-				$html = preg_replace('#<script[^>]*?\bsrc\b(?:[^>](?!html5))*?>.*?</script>#si', "", $html);
-			}
+		//verwijder alle embedded stylesheets uit de pagina:
+		//remove all embedded stylesheets from the page:
+		if ($target == "embedded") {
+			$html = preg_replace('#<style[^>]*>.*?</style>#si', "", $html);
 		}
 
-		//stylesheets:
+		//verwijder alle links naar externe stylesheets:
+		//remove all links to external stylesheets:
 		else {
-			//verwijder alle embedded stylesheets uit de pagina:
-			//remove all embedded stylesheets from the page:
-			if ($target == "embedded") {
-				$html = preg_replace('#<style[^>]*>.*?</style>#si', "", $html);
-			}
-
-			//verwijder alle links naar externe stylesheets:
-			//remove all links to external stylesheets:
-			else {
-				$html = preg_replace('#<link(?:[^>](?!ie\d+))*?stylesheet(?:[^>](?!ie\d+))*?>#i', "", $html);
-			}
+			$html = preg_replace('#<link(?:[^>](?!ie\d+))*?stylesheet(?:[^>](?!ie\d+))*?>#i', "", $html);
 		}
 	}
 
